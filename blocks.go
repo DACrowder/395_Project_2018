@@ -122,7 +122,6 @@ func getUsersInTimeBlockValues(tx *sqlx.Tx, tid int) ([]int, error) {
 	}
 	logger.Println(usrs)
 	return usrs, nil
-
 }
 
 func updateTimeBlockQuery(tx *sqlx.Tx, tb *TimeBlock) error {

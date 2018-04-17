@@ -5,7 +5,7 @@ CREATE DATABASE caraway;
 CREATE TABLE family (
     family_id       SERIAL      PRIMARY KEY,
     family_name     TEXT,
-    children	    INT
+    children	      INT
 );
 
 CREATE TABLE users (
@@ -24,21 +24,21 @@ CREATE TABLE users (
 
 CREATE TABLE notifications (
     msg_id          SERIAL      PRIMARY Key,
-    msg             text,
-    adminCreated    boolean DEFAULT false
+    msg             TEXT,
+    adminCreated    BOOLEAN     DEFAULT false
 );
 
 create Table notify (
-    user_id         int         REFERENCES users (user_id),
-    msg_id          int         REFERENCES notifications (msg_id),
-    viewed          boolean     DEFAULT false
+    user_id         INT         REFERENCES users (user_id),
+    msg_id          INT         REFERENCES notifications (msg_id),
+    viewed          BOOLEAN     DEFAULT false
 );
 
 CREATE TABLE room (
     room_id         SERIAL      PRIMARY KEY,
     room_name       TEXT        UNIQUE,
     teacher_id      INT         REFERENCES users (user_id),
-    children	    INT,
+    children	      INT,
     room_num        TEXT
 );
 
@@ -64,17 +64,17 @@ CREATE TABLE booking (
     CONSTRAINT 	    unq_booking UNIQUE(block_id, family_id, user_id)
 );
 
-CREATE TABLE clocking (
-    booking_id      SERIAL	 REFERENCES booking (booking_id),
-    clock_in        TIMESTAMP,
-    clock_out       TIMESTAMP,
-    CONSTRAINT 	    unq_clocking UNIQUE(booking_id, clock_in, clock_out)
+CREATE TABLE punches (
+    punch_id        SERIAL        PRIMARY KEY,
+    booking_id      INT	          REFERENCES booking (booking_id),
+    punch           TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT 	    unq_clocking  UNIQUE(booking_id, punch)
 );
 
 CREATE TABLE donation (
-    donation_id     SERIAL PRIMARY KEY,
-    donor_id      INT    REFERENCES family (family_id),
-    donee_id    INT    REFERENCES family (family_id),
+    donation_id     SERIAL    PRIMARY KEY,
+    donor_id        INT       REFERENCES family (family_id),
+    donee_id        INT       REFERENCES family (family_id),
     amount          FLOAT,
     date_sent       TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

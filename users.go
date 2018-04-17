@@ -115,6 +115,7 @@ func (fd *FamilyData) setHoursData(startOfWeek time.Time, today now.Now) error {
 		logger.Println("Error getting hours data: ", err)
 		return err
 	}
+	var hrs float64
 	/* Create the historical datasets + get this week's totals */
 	for _, b := range bookings {
 		duration := (b.End.Sub(b.Start).Hours() * float64(b.Modifier))
@@ -122,8 +123,11 @@ func (fd *FamilyData) setHoursData(startOfWeek time.Time, today now.Now) error {
 		if b.Start.Before(startOfWeek) {
 			fd.History[b.UserID].addDurationPoint(DurationPoint{Y: duration, X: now.New(b.Start).BeginningOfDay()})
 		} else if b.Start.Before(today.Time) && b.End.After(startOfWeek) {
-			fd.HoursDone += duration
-			fd.HoursBooked += duration // Even though they're done, theyre still booked 4 this week
+			hrs, err = b.punchedHours()
+			if err != nil {
+				logger.Println("Error getting hoursDone from punches:  ", err)
+			}
+			fd.HoursBooked += duration // Even though they're done, they're still booked 4 this week
 		} else {
 			fd.HoursBooked += duration // Time is after today, but before week end --> booked hours
 		}

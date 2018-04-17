@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"net/http"
+	"sort"
 	"time"
 )
 
@@ -18,8 +19,7 @@ type bookingBlock struct {
 	End       time.Time `db:"booking_end" json:"end"`
 }
 
-
- // Initialize a Booking struct given a BookingID
+// Initialize a Booking struct given a BookingID
 func (b *bookingBlock) init(BID int) error {
 	q := `SELECT booking_id, block_id, family_id, user_id, COALESCE(LOCALTIMESTAMP, booking_start), COALESCE(LOCALTIMESTAMP, booking_end) FROM booking WHERE booking_id = $1`
 	err := db.QueryRow(q, BID).Scan(&b.BookingID, &b.BlockID, &b.FamilyID, &b.UserID, &b.Start, &b.End)
@@ -113,11 +113,11 @@ func bookingHandler(w http.ResponseWriter, r *http.Request, role int) {
 	if err != nil {
 		if _, ok := err.(*ClientSafeError); ok {
 			// We can send the error text of a client safe error
-			http.Error(w, err.Error(), http.StatusBadRequest);
+			http.Error(w, err.Error(), http.StatusBadRequest)
 		} else {
 			// We log the results of a real error, but send generic string
-		    logger.Println("Booking handler encountered: ", err)
-			http.Error(w, "Your request was not processed, try again", http.StatusInternalServerError);
+			logger.Println("Booking handler encountered: ", err)
+			http.Error(w, "Your request was not processed, try again", http.StatusInternalServerError)
 		}
 		return
 	}
@@ -137,7 +137,6 @@ type Booking struct {
 	Modifier  int       `db:"modifier" json:"modifier"`
 	Note      string    `db:"note" json:"note"`
 }
-
 
 // Reads json request, and creates a partially filled booking struct
 func bookingFromJSON(r *http.Request) (*Booking, error) {
@@ -310,7 +309,7 @@ func (b *Booking) book(role int) error {
 	/* Prevent booking in completed and/or conflicting events */
 	_, err := b.isLegal()
 	if err != nil {
-		return err  // The error returned may or may not be clientsafe -- is up to caller to determine what route to take
+		return err // The error returned may or may not be clientsafe -- is up to caller to determine what route to take
 	}
 
 	// Dont update booking_start and booking_end in DB --> these are the ACTUAL start/end times
@@ -370,4 +369,29 @@ func getBookingCount(blockID int) int {
 	q := `SELECT count(*) FROM booking WHERE block_id = $1`
 	db.QueryRow(q, blockID).Scan(&cnt)
 	return cnt
+}
+
+// Retrieves the duration of actual time-worked in a punch slice [DOES NOT ACCOUNT FOR MODIFIER -- returns the actual duration]
+// If the punch slice is incomplete (i.e. an odd # of punches), the booking end time is used as the final punch
+// Allows for several punch-in/punch-outs within a booking, in-case someone has to leave for a period but returns, or whatever.
+func (b Booking) punchedHours() (float64, error) {
+	ps, err := getBookingPunches(b.BookingID)
+	// 0 duration conditions
+	if err != nil {
+		return 0.00, err
+	} else if len(ps) == 0 {
+		return 0.00, nil
+	}
+	// If un-even punch count, insert block-end as new end
+	if len(ps)%2 != 0 {
+		ps = append(ps, Punch{id: -1, BID: b.BookingID, Stamp: b.End})
+		sort.Sort(&ps)
+	}
+	// Get the duration in hours from the slice
+	duration := 0.00
+	for i := 0; i < len(ps); i+=2 {
+		// Punch i + 1 = punchOut; punch i = Punch In
+		duration += ps[i+1].Stamp.Sub(ps[i].Stamp).Hours()
+	}
+	return duration, nil
 }
